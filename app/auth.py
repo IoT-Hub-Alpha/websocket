@@ -1,4 +1,5 @@
 """JWT authentication for WebSocket connections."""
+
 import logging
 from typing import Optional
 from urllib.parse import parse_qs, unquote
@@ -64,7 +65,10 @@ async def authenticate_websocket(
 
     # Try to get token from query string first (common for WebSocket)
     token = get_token_from_query_string(query_string)
-    logger.debug("websocket.auth.query_string", extra={"query_string": query_string, "token_found": bool(token)})
+    logger.debug(
+        "websocket.auth.query_string",
+        extra={"query_string": query_string, "token_found": bool(token)},
+    )
 
     # Fallback to Authorization header
     if not token:
@@ -72,7 +76,15 @@ async def authenticate_websocket(
         token = extract_token_from_header(auth_header)
 
     if not token:
-        logger.warning("websocket.auth.missing_token", extra={"query_string": query_string, "has_auth_header": bool(headers.get("authorization") or headers.get("Authorization"))})
+        logger.warning(
+            "websocket.auth.missing_token",
+            extra={
+                "query_string": query_string,
+                "has_auth_header": bool(
+                    headers.get("authorization") or headers.get("Authorization")
+                ),
+            },
+        )
         raise InvalidTokenError("Missing JWT token")
 
     try:

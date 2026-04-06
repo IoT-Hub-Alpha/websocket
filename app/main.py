@@ -1,4 +1,5 @@
 """FastAPI application for WebSocket telemetry service."""
+
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -80,12 +81,17 @@ async def ws_endpoint(websocket: WebSocket):
     try:
         # Extract query string from WebSocket scope
         query_bytes = websocket.scope.get("query_string", b"")
-        query_string = query_bytes.decode() if isinstance(query_bytes, bytes) else query_bytes
-        logger.info("websocket.auth.attempt", extra={
-            "query_string": query_string,
-            "has_query": bool(query_string),
-            "scope_keys": list(websocket.scope.keys())
-        })
+        query_string = (
+            query_bytes.decode() if isinstance(query_bytes, bytes) else query_bytes
+        )
+        logger.info(
+            "websocket.auth.attempt",
+            extra={
+                "query_string": query_string,
+                "has_query": bool(query_string),
+                "scope_keys": list(websocket.scope.keys()),
+            },
+        )
 
         await authenticate_websocket(
             query_string=query_string,

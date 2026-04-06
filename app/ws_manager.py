@@ -1,4 +1,5 @@
 """WebSocket connection manager for telemetry subscriptions."""
+
 import json
 import logging
 from dataclasses import dataclass, field
@@ -42,7 +43,11 @@ class ConnectionManager:
         logger.info(
             "websocket.connected",
             extra={
-                "client": f"{client_addr.host}:{client_addr.port}" if client_addr else "unknown",
+                "client": (
+                    f"{client_addr.host}:{client_addr.port}"
+                    if client_addr
+                    else "unknown"
+                ),
                 "total_clients": len(connected_clients),
             },
         )
@@ -73,7 +78,11 @@ class ConnectionManager:
         logger.info(
             "websocket.disconnected",
             extra={
-                "client": f"{client_addr.host}:{client_addr.port}" if client_addr else "unknown",
+                "client": (
+                    f"{client_addr.host}:{client_addr.port}"
+                    if client_addr
+                    else "unknown"
+                ),
                 "total_clients": len(connected_clients),
             },
         )
@@ -205,7 +214,10 @@ class ConnectionManager:
 
         for client in connected_clients:
             # Only send to clients subscribed to this device
-            if not client.subscribed_devices or serial_number not in client.subscribed_devices:
+            if (
+                not client.subscribed_devices
+                or serial_number not in client.subscribed_devices
+            ):
                 continue
 
             try:

@@ -1,4 +1,5 @@
 """Health check endpoints for the service."""
+
 from fastapi import APIRouter
 
 router = APIRouter()
