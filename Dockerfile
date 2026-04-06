@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /tmp
 
@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     && rm -rf /var/lib/apt/lists/*
-
-### asdsdhfkjlh
 
 # Create virtual environment
 RUN python -m venv /opt/venv
