@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     service_name: str = Field(default="websocket-service", alias="SERVICE_NAME")
 
+    # JWT authentication
+    jwt_secret_key: str = Field(default="dev-jwt-secret-change-in-production", alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+
     class Config:
         env_file = ".env"
         case_sensitive = False

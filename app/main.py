@@ -5,8 +5,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from iot_auth.core import InvalidTokenError
 from iot_logging import FastAPIRequestContextMiddleware, StructuredJsonFormatter
 
+from app.auth import authenticate_websocket
 from app.config import get_settings
 from app.health import router as health_router
 from app.kafka_consumer import start_kafka_consumer, stop_kafka_consumer
@@ -68,10 +70,32 @@ async def ws_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time telemetry streaming.
 
+    Requires JWT authentication via query string (?token=<jwt>) or Authorization header.
+
     Protocol:
     - Client can subscribe to devices: {"action": "subscribe", "devices": ["SERIAL"]}
     - Server broadcasts telemetry: {"type": "telemetry", "serial_number": "...", ...}
     """
+    # Authenticate before accepting connection
+    try:
+        # Extract query string from WebSocket scope
+        query_bytes = websocket.scope.get("query_string", b"")
+        query_string = query_bytes.decode() if isinstance(query_bytes, bytes) else query_bytes
+        logger.info("websocket.auth.attempt", extra={
+            "query_string": query_string,
+            "has_query": bool(query_string),
+            "scope_keys": list(websocket.scope.keys())
+        })
+
+        await authenticate_websocket(
+            query_string=query_string,
+            headers=dict(websocket.headers),
+        )
+    except InvalidTokenError:
+        logger.warning("websocket.auth.rejected")
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
+
     conn = await manager.connect(websocket)
     try:
         while True:

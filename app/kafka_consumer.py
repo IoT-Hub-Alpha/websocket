@@ -68,6 +68,10 @@ async def _consumer_loop() -> None:
                         data = json.loads(value.decode("utf-8"))
                         data["type"] = "telemetry"
 
+                        # Normalize serial_number field (handle both "ssn" and "serial_number")
+                        if "ssn" in data and "serial_number" not in data:
+                            data["serial_number"] = data["ssn"]
+
                         if connected_clients:
                             await broadcast_telemetry(data)
 
