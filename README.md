@@ -30,7 +30,11 @@ open https://localhost/demo
 
 ### WebSocket Connection
 
-Connect to: `wss://host/ws/telemetry/`
+Connect to: `wss://host/ws/telemetry/?token=<jwt>`
+
+**Authentication Required**: All WebSocket connections require a valid JWT token. Provide the token via:
+- Query string parameter: `?token=<jwt>`
+- Authorization header: `Authorization: Bearer <jwt>`
 
 ### Client → Server Messages
 
@@ -115,6 +119,8 @@ Connect to: `wss://host/ws/telemetry/`
 | `HTTP_PORT` | Server port | `8006` | No |
 | `LOG_LEVEL` | Logging level | `INFO` | No |
 | `SERVICE_NAME` | Service identifier for logs | `websocket-service` | No |
+| `JWT_SECRET_KEY` | Secret key for JWT validation | `dev-jwt-secret-change-in-production` | No |
+| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` | No |
 
 ## Health Checks
 
@@ -158,6 +164,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
 services/websocket/
 ├── app/
 │   ├── main.py              # FastAPI app, lifespan, endpoints
+│   ├── auth.py              # JWT authentication logic
 │   ├── config.py            # Pydantic settings
 │   ├── ws_manager.py        # ConnectionManager, WsConnection
 │   ├── kafka_consumer.py    # Kafka consumer task
@@ -171,6 +178,7 @@ services/websocket/
 
 ### Key Components
 
+- **JWT Authentication**: Validates JWT tokens from query string or Authorization header
 - **ConnectionManager**: Manages active WebSocket connections and subscriptions
 - **Kafka Consumer**: Background asyncio task consuming from `telemetry.raw`
 - **FastAPI Lifespan**: Handles startup/shutdown of Kafka consumer
@@ -180,16 +188,39 @@ services/websocket/
 
 ### Test WebSocket Connection
 
+First, generate a valid JWT token (or use a token from your auth service). Then connect with the token:
+
 ```bash
 # From inside container or with websocket client
 python3 << 'EOF'
 import asyncio, websockets, json
 
 async def test():
-    async with websockets.connect("ws://localhost:8006/ws/telemetry/") as ws:
+    # Replace with a valid JWT token
+    token = "your-jwt-token-here"
+    uri = f"ws://localhost:8006/ws/telemetry/?token={token}"
+
+    async with websockets.connect(uri) as ws:
         print(await ws.recv())  # Connection message
         await ws.send(json.dumps({"action": "subscribe", "devices": ["DEVICE-ID"]}))
         print(await ws.recv())  # Subscription confirmation
+
+asyncio.run(test())
+EOF
+```
+
+To test authentication rejection (missing token):
+```bash
+python3 << 'EOF'
+import asyncio, websockets, json
+
+async def test():
+    try:
+        # This should fail - no token provided
+        async with websockets.connect("ws://localhost:8006/ws/telemetry/") as ws:
+            print(await ws.recv())
+    except Exception as e:
+        print(f"Connection rejected: {e}")
 
 asyncio.run(test())
 EOF
@@ -214,9 +245,19 @@ Logs are output in structured JSON format:
 
 Use the `SERVICE_NAME` environment variable to identify this service in logs.
 
+## Authentication
+
+The service requires **JWT authentication** for all WebSocket connections. The JWT token can be provided via:
+
+1. **Query String**: `wss://host/ws/telemetry/?token=<jwt>`
+2. **Authorization Header**: `Authorization: Bearer <jwt>`
+
+The JWT payload is decoded and validated using the configured secret key. Invalid or missing tokens will result in connection rejection (WebSocket close code 4401).
+
+**Environment Variable**: `JWT_SECRET_KEY` - Secret key for JWT validation (default: `dev-jwt-secret-change-in-production`)
+
 ## Notes
 
-- **No Authentication**: Authentication will be added in a future phase
+- **JWT Authentication**: All WebSocket connections require valid JWT tokens
 - **In-Memory Registry**: Subscriptions are not persisted across restarts
-- **Lazy Consumer**: Kafka consumer only starts when clients connect
 - **Per-Client Subscriptions**: Each client manages its own device subscriptions independently
